@@ -31,6 +31,7 @@ pipeline {
                 echo 'Running tests'
                 bat '''
                     call .venv\\Scripts\\activate
+                    set PYTHONPATH=backend
                     pytest backend\\tests
                 '''
             }
@@ -41,6 +42,7 @@ pipeline {
                 echo 'Starting Flask app'
                 bat '''
                     call .venv\\Scripts\\activate
+                    set PYTHONPATH=backend
                     set FLASK_APP=backend/run.py
                     flask run
                 '''
