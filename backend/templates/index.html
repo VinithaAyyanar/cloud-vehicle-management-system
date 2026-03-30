@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Vehicle Management | Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            prefix: "tw-",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: "#eff6ff",
+                            100: "#dbeafe",
+                            500: "#3b82f6",
+                            600: "#2563eb",
+                            700: "#1d4ed8"
+                        }
+                    },
+                    boxShadow: {
+                        soft: "0 8px 24px rgba(15,23,42,.08)"
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="tw-antialiased tw-text-slate-800">
+    <div id="loaderOverlay" class="loader-overlay d-none">
+        <div class="text-center">
+            <div class="spinner-border text-light" role="status"></div>
+            <p class="text-light mt-2 mb-0">Loading...</p>
+        </div>
+    </div>
+
+    <div class="app-shell tw-min-h-screen">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-mark"><i class="bi bi-car-front-fill"></i></div>
+                <div>
+                    <h1 class="brand-title">VMS Cloud</h1>
+                    <p class="brand-subtitle mb-0">Fleet Operations</p>
+                </div>
+            </div>
+            <nav class="nav flex-column sidebar-nav mt-4">
+                <button class="nav-link active" data-section="dashboard"><i class="bi bi-grid-1x2-fill"></i>Dashboard</button>
+                <button class="nav-link" data-section="vehicles"><i class="bi bi-truck-front-fill"></i>Vehicles</button>
+                <button class="nav-link" data-section="bookings"><i class="bi bi-calendar2-week-fill"></i>Bookings</button>
+                <button class="nav-link admin-only d-none" data-section="analytics"><i class="bi bi-bar-chart-fill"></i>Analytics</button>
+                <button class="nav-link admin-only d-none" data-section="reports"><i class="bi bi-file-earmark-arrow-down-fill"></i>Reports</button>
+                <button class="nav-link" data-section="settings"><i class="bi bi-gear-fill"></i>Settings</button>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button id="toggleSidebarBtn" class="btn btn-sm btn-outline-secondary d-lg-none">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div>
+                        <h2 class="topbar-title mb-0">Vehicle Management Dashboard</h2>
+                        <small class="text-muted">Production-style control center</small>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <span class="badge text-bg-light border" id="userMeta">Not logged in</span>
+                    <button id="logoutBtn" class="btn btn-sm btn-dark"><i class="bi bi-box-arrow-right me-1"></i>Logout</button>
+                </div>
+            </header>
+
+            <div class="content-wrap">
+                <div id="alertBox"></div>
+
+                <section id="authPanel" class="content-section">
+                    <div class="row g-4">
+                        <div class="col-xl-6">
+                            <div class="card panel-card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="bi bi-person-plus-fill me-2"></i>Register</h5>
+                                    <form id="registerForm" novalidate>
+                                        <div class="mb-2">
+                                            <input class="form-control" name="full_name" placeholder="Full Name" required>
+                                            <div class="invalid-feedback">Please enter full name.</div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <input class="form-control" name="email" type="email" placeholder="Email" required>
+                                            <div class="invalid-feedback">Please enter valid email.</div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <input class="form-control" name="password" type="password" placeholder="Password" minlength="6" required>
+                                            <div class="invalid-feedback">Minimum 6 characters required.</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <select class="form-select" name="role">
+                                                <option value="user">User</option>
+                                                <option value="admin">Admin</option>
+                                            </select>
+                                        </div>
+                                        <button class="btn btn-primary w-100" type="submit">Create Account</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-6">
+                            <div class="card panel-card">
+                                <div class="card-body">
+                                    <h5 class="card-title"><i class="bi bi-box-arrow-in-right me-2"></i>Login</h5>
+                                    <form id="loginForm" novalidate>
+                                        <div class="mb-2">
+                                            <input class="form-control" name="email" type="email" placeholder="Email" required>
+                                            <div class="invalid-feedback">Please enter valid email.</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <input class="form-control" name="password" type="password" placeholder="Password" required>
+                                            <div class="invalid-feedback">Password is required.</div>
+                                        </div>
+                                        <button class="btn btn-success w-100" type="submit">Login</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-dashboard" class="content-section d-none">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6 col-xl-3">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-primary-subtle text-primary"><i class="bi bi-truck"></i></div>
+                                <p class="metric-label">Total Vehicles</p>
+                                <h3 id="metricVehicles" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-warning-subtle text-warning"><i class="bi bi-hourglass-split"></i></div>
+                                <p class="metric-label">Active Bookings</p>
+                                <h3 id="metricActive" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-success-subtle text-success"><i class="bi bi-check2-circle"></i></div>
+                                <p class="metric-label">Completed Services</p>
+                                <h3 id="metricCompleted" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-6 col-xl-3">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-danger-subtle text-danger"><i class="bi bi-exclamation-triangle"></i></div>
+                                <p class="metric-label">Pending Services</p>
+                                <h3 id="metricPending" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-xl-8">
+                            <div class="card panel-card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Booking Trends</h5>
+                                    <canvas id="bookingTrendChart" height="120"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-4">
+                            <div class="card panel-card mb-3">
+                                <div class="card-body">
+                                    <h5 class="card-title">Vehicle Usage</h5>
+                                    <canvas id="vehicleUsageChart" height="160"></canvas>
+                                </div>
+                            </div>
+                            <div class="card panel-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">Service Frequency</h5>
+                                    <canvas id="serviceFrequencyChart" height="160"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-xl-7">
+                            <div class="card panel-card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Notifications</h5>
+                                    <ul id="notificationList" class="notification-list mb-0"></ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-5">
+                            <div class="card panel-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h5 class="card-title mb-0">Fleet Mix</h5>
+                                        <span class="text-muted small">By vehicle type</span>
+                                    </div>
+                                    <div id="vehicleTypeSummary" class="type-summary-grid"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-vehicles" class="content-section d-none">
+                    <div class="card panel-card mb-3">
+                        <div class="card-body">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-2">
+                                    <label class="form-label">Search Plate</label>
+                                    <input id="vehicleSearchInput" class="form-control" placeholder="KA01AB1234">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Status</label>
+                                    <select id="vehicleStatusFilter" class="form-select">
+                                        <option value="all">All</option>
+                                        <option value="active">Active</option>
+                                        <option value="service_due">Service Due</option>
+                                        <option value="overdue">Overdue</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Model</label>
+                                    <input id="vehicleModelFilter" class="form-control" placeholder="Model">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Year</label>
+                                    <input id="vehicleYearFilter" class="form-control" type="number" placeholder="2024">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Vehicle Type</label>
+                                    <select id="vehicleTypeFilter" class="form-select">
+                                        <option value="all">All</option>
+                                        <option value="Car">Car</option>
+                                        <option value="Bike">Bike</option>
+                                        <option value="Truck">Truck</option>
+                                        <option value="Bus">Bus</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card panel-card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Add Vehicle</h5>
+                            <form id="vehicleForm" class="row g-2" novalidate>
+                                <div class="col-md-2"><input class="form-control" name="plate_number" placeholder="Plate Number" required></div>
+                                <div class="col-md-2"><input id="vehicleBrandInput" class="form-control" name="brand" placeholder="Brand" list="brandSuggestions" required></div>
+                                <div class="col-md-2"><input id="vehicleModelInput" class="form-control" name="model" placeholder="Model" list="modelSuggestions" required></div>
+                                <div class="col-md-2"><input class="form-control" name="year" type="number" placeholder="Year" required></div>
+                                <div class="col-md-3">
+                                    <select class="form-select" name="vehicle_type" aria-label="Vehicle Type">
+                                        <option value="">Select Type (defaults to Other)</option>
+                                        <option value="Car">Car</option>
+                                        <option value="Bike">Bike</option>
+                                        <option value="Truck">Truck</option>
+                                        <option value="Bus">Bus</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-1 d-grid"><button class="btn btn-primary" type="submit"><i class="bi bi-plus"></i></button></div>
+                                <div class="col-12"><input id="vehicleImageInput" class="form-control" name="image_url" placeholder="Vehicle Image URL (optional)"></div>
+                                <div class="col-12"><input id="vehicleImageFileInput" class="form-control" type="file" accept="image/*"></div>
+                                <div class="col-12 d-flex align-items-center gap-2">
+                                    <small class="text-muted">Image preview:</small>
+                                    <img id="vehicleImagePreview" class="vehicle-preview d-none" alt="preview">
+                                </div>
+                            </form>
+                            <datalist id="brandSuggestions"></datalist>
+                            <datalist id="modelSuggestions"></datalist>
+                        </div>
+                    </div>
+                    <div class="card panel-card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">Vehicle Registry</h5>
+                                <span class="text-muted small">Structured fleet overview</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Plate</th>
+                                            <th>Vehicle</th>
+                                            <th>Type</th>
+                                            <th>Year</th>
+                                            <th>Status</th>
+                                            <th>Health</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="vehiclesTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="vehiclesGrid" class="row g-3"></div>
+                </section>
+
+                <section id="section-bookings" class="content-section d-none">
+                    <div class="row g-3">
+                        <div class="col-xl-5">
+                            <div class="card panel-card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Create Booking</h5>
+                                    <form id="bookingForm" class="row g-2" novalidate>
+                                        <div class="col-md-6">
+                                            <select id="bookingVehicleSelect" class="form-select" name="vehicle_id" required>
+                                                <option value="">Select Vehicle (Plate Number)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6"><input class="form-control" name="service_type" placeholder="Service Type" list="serviceTypeSuggestions" required></div>
+                                        <div class="col-12"><input id="scheduledForInput" class="form-control" name="scheduled_for" type="datetime-local" step="1" required></div>
+                                        <div class="col-12"><textarea class="form-control" name="notes" placeholder="Notes"></textarea></div>
+                                        <div class="col-12 d-grid"><button class="btn btn-warning" type="submit">Create Booking</button></div>
+                                    </form>
+                                    <datalist id="serviceTypeSuggestions"></datalist>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-xl-7">
+                            <div class="card panel-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h5 class="card-title mb-0">Booking Timeline</h5>
+                                        <button id="refreshBookingsBtn" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+                                    </div>
+                                    <div id="bookingsTimeline" class="timeline"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-analytics" class="content-section d-none admin-only">
+                    <div class="card panel-card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">Admin Analytics</h5>
+                                <button id="loadAnalyticsBtn" class="btn btn-dark btn-sm">Load Live Analytics</button>
+                            </div>
+                            <pre id="analyticsBox" class="analytics-box mb-0"></pre>
+                        </div>
+                    </div>
+                    <div class="card panel-card">
+                        <div class="card-body">
+                            <h5 class="card-title">Most Used Vehicles</h5>
+                            <div id="mostUsedVehicles"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-reports" class="content-section d-none admin-only">
+                    <div class="card panel-card">
+                        <div class="card-body">
+                            <h5 class="card-title">Export Reports</h5>
+                            <p class="text-muted">Download operational data for evaluation and audit.</p>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button id="exportVehiclesBtn" class="btn btn-outline-primary"><i class="bi bi-download me-1"></i>Export Vehicles CSV</button>
+                                <button id="exportBookingsBtn" class="btn btn-outline-success"><i class="bi bi-download me-1"></i>Export Bookings CSV</button>
+                                <button id="exportCombinedBtn" class="btn btn-outline-dark"><i class="bi bi-download me-1"></i>Export Combined CSV</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="section-settings" class="content-section d-none">
+                    <div class="card panel-card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Settings</h5>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="toastToggle" checked>
+                                <label class="form-check-label" for="toastToggle">Enable toast notifications</label>
+                            </div>
+                            <button id="clearLogsBtn" class="btn btn-sm btn-outline-danger">Clear Activity Logs</button>
+                        </div>
+                    </div>
+                    <div class="card panel-card">
+                        <div class="card-body">
+                            <h5 class="card-title">Activity Logs</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr></thead>
+                                    <tbody id="activityLogBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
+
+    <div class="modal fade" id="vehicleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Vehicle Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="vehicleModalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmText" class="mb-0">Are you sure?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-danger" id="confirmActionBtn">Yes, Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+backend/tests
+docs
+deploy/k8s
+deploy/monitoring
+

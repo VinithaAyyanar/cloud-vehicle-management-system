@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vehicle-app
+  namespace: vehicle-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: vehicle-app
+  template:
+    metadata:
+      labels:
+        app: vehicle-app
+    spec:
+      containers:
+        - name: vehicle-app
+          image: vehicle-management-app:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: DATABASE_URL
+              value: postgresql+psycopg2://vehicle_user:vehicle_pass@postgres:5432/vehicle_db
+            - name: SECRET_KEY
+              value: change-me
+            - name: JWT_SECRET_KEY
+              value: change-jwt-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vehicle-app
+  namespace: vehicle-system
+spec:
+  type: LoadBalancer
+  selector:
+    app: vehicle-app
+  ports:
+    - port: 80
+      targetPort: 5000
+
