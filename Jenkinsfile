@@ -53,6 +53,10 @@ pipeline {
                 bat '''
                     call .venv\\Scripts\\activate
                     set PYTHONPATH=backend
+                    set SECRET_KEY=jenkins-secret-key
+                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
+                    set JWT_EXPIRES_MIN=60
+                    set DATABASE_URL=sqlite:///jenkins.db
                     pytest backend\\tests --junitxml=backend\\test-results.xml
                 '''
             }
@@ -64,6 +68,10 @@ pipeline {
                 bat '''
                     call .venv\\Scripts\\activate
                     set PYTHONPATH=backend
+                    set SECRET_KEY=jenkins-secret-key
+                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
+                    set JWT_EXPIRES_MIN=60
+                    set DATABASE_URL=sqlite:///jenkins.db
                     python backend\\smoke_run.py > backend\\smoke-output.txt
                     type backend\\smoke-output.txt
                     findstr /C:"register 201" backend\\smoke-output.txt
