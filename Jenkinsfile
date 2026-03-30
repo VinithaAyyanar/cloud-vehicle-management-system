@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     options {
-        timestamps()
-        ansiColor('xterm')
-        disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '15'))
-    }
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '15'))
+}
 
     parameters {
         booleanParam(name: 'PUSH_IMAGE', defaultValue: false, description: 'Push image to Docker Hub')
