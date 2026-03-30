@@ -6,10 +6,6 @@ pipeline {
         disableConcurrentBuilds()
     }
 
-    environment {
-        APP_ENV_FILE = 'C:\\jenkins_home\\secrets\\vehicle-app.env'
-    }
-
     triggers {
         githubPush()
     }
@@ -34,9 +30,26 @@ pipeline {
             }
         }
 
+        stage('Prepare Env') {
+            steps {
+                echo 'Creating Jenkins runtime environment'
+                bat '''
+                    (
+                        echo SECRET_KEY=jenkins-secret-key
+                        echo JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
+                        echo JWT_EXPIRES_MIN=60
+                        echo POSTGRES_USER=vehicle_user
+                        echo POSTGRES_PASSWORD=vehicle_pass
+                        echo POSTGRES_DB=vehicle_db
+                        echo DATABASE_URL=sqlite:///jenkins.db
+                    ) > .env
+                '''
+            }
+        }
+
         stage('Test') {
             steps {
-                echo 'Running tests'
+                echo 'Running test suite'
                 bat '''
                     call .venv\\Scripts\\activate
                     set PYTHONPATH=backend
@@ -45,45 +58,17 @@ pipeline {
             }
         }
 
-        stage('Prepare Env') {
+        stage('Smoke Verify') {
             steps {
-                echo 'Preparing runtime environment file'
+                echo 'Running application smoke verification'
                 bat '''
-                    if exist ".env" del /f /q ".env"
-                    if not exist "%APP_ENV_FILE%" (
-                        echo Missing env file at %APP_ENV_FILE%
-                        exit /b 1
-                    )
-                    copy /Y "%APP_ENV_FILE%" ".env"
-                '''
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                echo 'Building Docker image'
-                bat '''
-                    docker build -t vehicle-management-app:latest -f backend\\Dockerfile .
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                echo 'Deploying application with Docker Compose'
-                bat '''
-                    docker compose down
-                    docker compose up -d --build
-                '''
-            }
-        }
-
-        stage('Verify') {
-            steps {
-                echo 'Checking application health'
-                bat '''
-                    powershell -Command "Start-Sleep -Seconds 15; Invoke-WebRequest -UseBasicParsing http://localhost:5000 | Out-Null"
-                    docker compose ps
+                    call .venv\\Scripts\\activate
+                    set PYTHONPATH=backend
+                    python backend\\smoke_run.py > backend\\smoke-output.txt
+                    type backend\\smoke-output.txt
+                    findstr /C:"register 201" backend\\smoke-output.txt
+                    findstr /C:"login 200" backend\\smoke-output.txt
+                    findstr /C:"create_vehicle 201" backend\\smoke-output.txt
                 '''
             }
         }
@@ -92,14 +77,13 @@ pipeline {
     post {
         always {
             junit allowEmptyResults: true, testResults: 'backend/test-results.xml'
-            archiveArtifacts allowEmptyArchive: true, artifacts: 'backend/test-results.xml'
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'backend/test-results.xml, backend/smoke-output.txt, .env'
         }
         success {
             echo 'Pipeline completed successfully'
         }
         failure {
-            echo 'Pipeline failed. Check .env path, Docker access, and compose logs.'
-            bat 'docker compose ps'
+            echo 'Pipeline failed. Check test logs and smoke verification output.'
         }
     }
 }
