@@ -81,15 +81,7 @@ pipeline {
             steps {
                 echo 'Starting Flask app on port 5000'
                 bat '''
-                    start cmd /k "
-                    call .venv\\Scripts\\activate &&
-                    set PYTHONPATH=backend &&
-                    set SECRET_KEY=jenkins-secret-key &&
-                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890 &&
-                    set DATABASE_URL=sqlite:///jenkins.db &&
-                    set FLASK_APP=backend/run.py &&
-                    flask run --host=0.0.0.0 --port=5000
-                    "
+                    start cmd /k call .venv\\Scripts\\activate ^&^& set PYTHONPATH=backend ^&^& set SECRET_KEY=jenkins-secret-key ^&^& set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890 ^&^& set DATABASE_URL=sqlite:///jenkins.db ^&^& set FLASK_APP=backend/run.py ^&^& flask run --host=0.0.0.0 --port=5000
                 '''
             }
         }
