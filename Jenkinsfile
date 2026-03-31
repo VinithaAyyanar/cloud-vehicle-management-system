@@ -28,14 +28,7 @@ pipeline {
             }
         }
 
-        stage('Stop Previous App') {
-            steps {
-                echo 'Stopping previous app on port 5000 (if any)'
-                bat '''
-                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000') do taskkill /PID %%a /F
-                '''
-            }
-        }
+        
 
         stage('Run App (Detached)') {
             steps {
