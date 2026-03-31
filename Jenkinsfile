@@ -27,7 +27,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo 'Setting up virtual environment and installing dependencies...'
+                echo 'Setting up environment...'
                 bat '''
                     python -m venv .venv
                     call .venv\\Scripts\\activate
@@ -44,28 +44,27 @@ pipeline {
                 bat '''
                     call .venv\\Scripts\\activate
 
-                    REM Kill any existing Flask app on port 5000 (ignore errors)
+                    REM Kill any existing app on port 5000 (ignore errors)
                     for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000') do (
-                        taskkill /PID %%a /F || echo "No permission / already stopped"
+                        taskkill /PID %%a /F || echo "Ignore kill error"
                     )
 
-                    REM Start Flask app in background
-                    start "" /B python backend\\run.py
+                    REM Start Flask app properly in background
+                    start "" /B cmd /c "python backend\\run.py"
                 '''
             }
         }
 
         stage('Health Check') {
             steps {
-                echo 'Checking if application is live...'
+                echo 'Checking if app is live...'
 
                 bat '''
-                    timeout /t 5 > nul
+                    REM wait for server to start
+                    ping 127.0.0.1 -n 6 > nul
 
-                    curl http://127.0.0.1:5000 || (
-                        echo "App not responding"
-                        exit 1
-                    )
+                    REM check server
+                    curl http://127.0.0.1:5000 || exit 1
                 '''
             }
         }
@@ -73,10 +72,10 @@ pipeline {
 
     post {
         success {
-            echo '🎉 App is running successfully at http://127.0.0.1:5000'
+            echo '🎉 SUCCESS: App is running at http://127.0.0.1:5000'
         }
         failure {
-            echo '❌ Pipeline failed. Check logs.'
+            echo '❌ FAILED: Check logs'
         }
     }
 }
