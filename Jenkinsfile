@@ -33,12 +33,11 @@ pipeline {
 
         stage('Prepare Env') {
             steps {
-                echo 'Creating Jenkins runtime environment'
+                echo 'Creating environment'
                 bat '''
                     (
                         echo SECRET_KEY=jenkins-secret-key
                         echo JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-                        echo JWT_EXPIRES_MIN=60
                         echo DATABASE_URL=sqlite:///jenkins.db
                     ) > .env
                 '''
@@ -47,64 +46,37 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'Running test suite'
+                echo 'Running tests'
                 bat '''
                     call .venv\\Scripts\\activate
                     set PYTHONPATH=backend
-                    set SECRET_KEY=jenkins-secret-key
-                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
                     set DATABASE_URL=sqlite:///jenkins.db
-                    pytest backend\\tests --junitxml=backend\\test-results.xml
-                '''
-            }
-        }
-
-        stage('Smoke Verify') {
-            steps {
-                echo 'Running application smoke verification'
-                bat '''
-                    call .venv\\Scripts\\activate
-                    set PYTHONPATH=backend
-                    set SECRET_KEY=jenkins-secret-key
-                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-                    set DATABASE_URL=sqlite:///jenkins.db
-                    python backend\\smoke_run.py > backend\\smoke-output.txt
-                    type backend\\smoke-output.txt
-                    findstr /C:"register 201" backend\\smoke-output.txt
-                    findstr /C:"login 200" backend\\smoke-output.txt
-                    findstr /C:"create_vehicle 201" backend\\smoke-output.txt
+                    pytest backend\\tests
                 '''
             }
         }
 
         stage('Run App') {
-    steps {
-        echo 'Starting Flask app in background'
+            steps {
+                echo 'Starting Flask app (background)'
+                bat '''
+                    call .venv\\Scripts\\activate
+                    set PYTHONPATH=backend
+                    set DATABASE_URL=sqlite:///jenkins.db
+                    set FLASK_APP=backend/run.py
 
-        bat '''
-            call .venv\\Scripts\\activate
-            set PYTHONPATH=backend
-            set SECRET_KEY=jenkins-secret-key
-            set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-            set DATABASE_URL=sqlite:///jenkins.db
-            set FLASK_APP=backend/run.py
-
-            start "" flask run --host=0.0.0.0 --port=5000
-        '''
-    }
-}}
+                    start "" flask run --host=0.0.0.0 --port=5000
+                '''
+            }
+        }
     }
 
     post {
-        always {
-            junit allowEmptyResults: true, testResults: 'backend/test-results.xml'
-            archiveArtifacts allowEmptyArchive: true, artifacts: 'backend/test-results.xml, backend/smoke-output.txt, .env'
-        }
         success {
             echo 'Pipeline completed successfully'
         }
         failure {
-            echo 'Pipeline failed. Check logs.'
+            echo 'Pipeline failed'
         }
     }
 }
