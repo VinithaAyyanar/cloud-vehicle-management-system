@@ -20,18 +20,15 @@ pipeline {
 
         stage('Clone') {
             steps {
-                echo 'Cloning repository...'
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Setting up environment...'
                 bat '''
                     python -m venv .venv
                     call .venv\\Scripts\\activate
-                    python -m pip install --upgrade pip
                     pip install -r backend\\requirements.txt
                 '''
             }
@@ -39,17 +36,12 @@ pipeline {
 
         stage('Run App (Detached)') {
             steps {
-                echo 'Starting Flask app in background...'
+                echo 'Starting Flask app...'
 
                 bat '''
                     call .venv\\Scripts\\activate
 
-                    REM Kill any existing app on port 5000 (ignore errors)
-                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000') do (
-                        taskkill /PID %%a /F || echo "Ignore kill error"
-                    )
-
-                    REM Start Flask app properly in background
+                    REM start app in background (NO kill logic)
                     start "" /B cmd /c "python backend\\run.py"
                 '''
             }
@@ -57,13 +49,11 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                echo 'Checking if app is live...'
+                echo 'Checking app...'
 
                 bat '''
-                    REM wait for server to start
                     ping 127.0.0.1 -n 6 > nul
 
-                    REM check server
                     curl http://127.0.0.1:5000 || exit 1
                 '''
             }
@@ -72,10 +62,10 @@ pipeline {
 
     post {
         success {
-            echo '🎉 SUCCESS: App is running at http://127.0.0.1:5000'
+            echo 'SUCCESS - App running at http://127.0.0.1:5000'
         }
         failure {
-            echo '❌ FAILED: Check logs'
+            echo 'FAILED - Check logs'
         }
     }
 }
