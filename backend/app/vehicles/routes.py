@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -5,6 +7,16 @@ from ..extensions import db
 from ..models import User, Vehicle, normalize_vehicle_type
 
 vehicles_bp = Blueprint("vehicles", __name__, url_prefix="/api/vehicles")
+
+
+def parse_optional_date(value, field_name):
+    raw = (value or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(raw).date()
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be in YYYY-MM-DD format") from exc
 
 
 @vehicles_bp.get("")
@@ -41,6 +53,8 @@ def list_vehicles():
                 "model": v.model,
                 "year": v.year,
                 "vehicle_type": normalize_vehicle_type(v.vehicle_type),
+                "insurance_expiry": v.insurance_expiry.isoformat() if v.insurance_expiry else None,
+                "permit_expiry": v.permit_expiry.isoformat() if v.permit_expiry else None,
                 "owner_id": v.owner_id,
             }
             for v in vehicles
@@ -65,6 +79,12 @@ def create_vehicle():
     if Vehicle.query.filter_by(plate_number=payload["plate_number"].upper().strip()).first():
         return jsonify({"error": "Plate number already exists"}), 409
 
+    try:
+        insurance_expiry = parse_optional_date(payload.get("insurance_expiry"), "insurance_expiry")
+        permit_expiry = parse_optional_date(payload.get("permit_expiry"), "permit_expiry")
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
     vehicle = Vehicle(
         owner_id=current_user_id,
         plate_number=payload["plate_number"].upper().strip(),
@@ -72,6 +92,8 @@ def create_vehicle():
         model=payload["model"].strip(),
         year=int(payload["year"]),
         vehicle_type=vehicle_type,
+        insurance_expiry=insurance_expiry,
+        permit_expiry=permit_expiry,
     )
     db.session.add(vehicle)
     db.session.commit()
@@ -103,6 +125,13 @@ def update_vehicle(vehicle_id):
             vehicle.vehicle_type = normalize_vehicle_type(payload.get("vehicle_type"))
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 400
+
+    for field in ["insurance_expiry", "permit_expiry"]:
+        if field in payload:
+            try:
+                setattr(vehicle, field, parse_optional_date(payload.get(field), field))
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
 
     db.session.commit()
     return jsonify({"message": "Vehicle updated"})

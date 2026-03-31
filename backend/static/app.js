@@ -8,6 +8,7 @@ const state = {
   notificationsEnabled: localStorage.getItem("vms_toasts") !== "off",
   pendingConfirm: null,
   pendingImageData: "",
+  calendarStart: null,
 };
 
 const els = {
@@ -21,6 +22,9 @@ const els = {
   adminOnly: [...document.querySelectorAll(".admin-only")],
   logoutBtn: document.getElementById("logoutBtn"),
   toggleSidebarBtn: document.getElementById("toggleSidebarBtn"),
+  authTabs: [...document.querySelectorAll(".auth-tab")],
+  authLoginPane: document.getElementById("authLogin"),
+  authRegisterPane: document.getElementById("authRegister"),
   registerForm: document.getElementById("registerForm"),
   loginForm: document.getElementById("loginForm"),
   vehicleForm: document.getElementById("vehicleForm"),
@@ -59,9 +63,16 @@ const els = {
   metricActive: document.getElementById("metricActive"),
   metricCompleted: document.getElementById("metricCompleted"),
   metricPending: document.getElementById("metricPending"),
+  metricInsuranceExpiring: document.getElementById("metricInsuranceExpiring"),
+  metricPermitExpiring: document.getElementById("metricPermitExpiring"),
+  metricOverdue: document.getElementById("metricOverdue"),
   vehicleModalBody: document.getElementById("vehicleModalBody"),
   confirmText: document.getElementById("confirmText"),
   confirmActionBtn: document.getElementById("confirmActionBtn"),
+  bookingCalendar: document.getElementById("bookingCalendar"),
+  calendarPrevBtn: document.getElementById("calendarPrevBtn"),
+  calendarTodayBtn: document.getElementById("calendarTodayBtn"),
+  calendarNextBtn: document.getElementById("calendarNextBtn"),
 };
 
 const vehicleModal = new bootstrap.Modal(document.getElementById("vehicleModal"));
@@ -295,6 +306,20 @@ function normalizeScheduledFor(value) {
   return raw;
 }
 
+function parseDateOnly(value) {
+  if (!value) return null;
+  return new Date(`${value}T00:00:00`);
+}
+
+function formatDateLabel(date) {
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function daysUntil(date) {
+  if (!date) return null;
+  return Math.ceil((date.getTime() - Date.now()) / DAY);
+}
+
 function statusBadge(status) {
   const tone = {
     scheduled: "warning",
@@ -304,6 +329,15 @@ function statusBadge(status) {
     cancelled: "danger",
   }[status] || "secondary";
   return `<span class="badge text-bg-${tone} text-uppercase">${status.replace("_", " ")}</span>`;
+}
+
+function complianceBadge(label, dateValue) {
+  if (!dateValue) return `<span class="badge text-bg-secondary">${label}: N/A</span>`;
+  const days = daysUntil(parseDateOnly(dateValue));
+  if (days === null) return `<span class="badge text-bg-secondary">${label}: N/A</span>`;
+  if (days < 0) return `<span class="badge text-bg-danger">${label}: Expired</span>`;
+  if (days <= 30) return `<span class="badge text-bg-warning">${label}: ${days}d</span>`;
+  return `<span class="badge text-bg-success">${label}: ${days}d</span>`;
 }
 
 function normalizeVehicleType(vehicleType) {
@@ -357,6 +391,12 @@ function vehicleHealthScore(vehicleId) {
   return score;
 }
 
+function expiryDays(value) {
+  const date = parseDateOnly(value);
+  if (!date) return null;
+  return daysUntil(date);
+}
+
 function isAdmin() {
   return state.user && state.user.role === "admin";
 }
@@ -367,11 +407,17 @@ function setRoleUI() {
     ? `${state.user.full_name} (${state.user.role})`
     : "Not logged in";
 
+  document.body.classList.toggle("auth-locked", !loggedIn);
+  document.body.classList.toggle("auth-ready", loggedIn);
+
   els.adminOnly.forEach((el) => {
     el.classList.toggle("d-none", !isAdmin());
   });
 
   els.authPanel.classList.toggle("d-none", loggedIn);
+  if (!loggedIn) {
+    showSection("auth");
+  }
   if (loggedIn) showSection("dashboard");
 }
 
@@ -448,6 +494,10 @@ function renderVehicles() {
             </div>
             <div class="mb-2">${vehicleTypeBadge(v.vehicle_type)}</div>
             <p class="text-muted mb-1">${v.brand} ${v.model} (${v.year})</p>
+            <div class="d-flex flex-wrap gap-2 mb-2">
+              ${complianceBadge("Insurance", v.insurance_expiry)}
+              ${complianceBadge("Permit", v.permit_expiry)}
+            </div>
             <p class="small mb-1">Predicted Next Service: <strong>${due.toLocaleDateString()}</strong></p>
             <p class="small mb-2">Health Score: <strong>${health}/100</strong></p>
             <div class="progress mb-3" role="progressbar">
@@ -477,6 +527,8 @@ function renderVehicles() {
         <td>${v.brand} ${v.model}</td>
         <td>${vehicleTypeBadge(v.vehicle_type)}</td>
         <td>${v.year}</td>
+        <td>${complianceBadge("Ins", v.insurance_expiry)}</td>
+        <td>${complianceBadge("Permit", v.permit_expiry)}</td>
         <td>${statusBadge(status)}</td>
         <td>${health}/100</td>
       </tr>`;
@@ -524,6 +576,95 @@ function renderBookings() {
   );
 }
 
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function dateKey(date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function renderBookingCalendar() {
+  if (!els.bookingCalendar) return;
+  if (!state.calendarStart) state.calendarStart = startOfWeek(new Date());
+
+  const days = Array.from({ length: 7 }, (_, i) => addDays(state.calendarStart, i));
+  const bookingsByDay = new Map();
+  state.bookings.forEach((b) => {
+    const key = b.scheduled_for.slice(0, 10);
+    if (!bookingsByDay.has(key)) bookingsByDay.set(key, []);
+    bookingsByDay.get(key).push(b);
+  });
+
+  const calendarHtml = days
+    .map((day) => {
+      const key = dateKey(day);
+      const items = (bookingsByDay.get(key) || [])
+        .map((b) => {
+          return `
+            <div class="calendar-item" draggable="true" data-booking-id="${b.id}">
+              <strong>#${b.id}</strong> ${b.service_type}
+              <div class="calendar-subtext">Vehicle ${b.vehicle_id}</div>
+            </div>`;
+        })
+        .join("");
+      return `
+        <div class="calendar-day" data-date="${key}">
+          <div class="calendar-day-header">${formatDateLabel(day)}</div>
+          <div class="calendar-dropzone">${items || "<div class=\"calendar-empty\">No bookings</div>"}</div>
+        </div>`;
+    })
+    .join("");
+
+  setInnerHtml(els.bookingCalendar, calendarHtml);
+
+  els.bookingCalendar.querySelectorAll(".calendar-item").forEach((item) => {
+    item.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", item.dataset.bookingId);
+      e.dataTransfer.effectAllowed = "move";
+    });
+  });
+
+  els.bookingCalendar.querySelectorAll(".calendar-dropzone").forEach((zone) => {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      zone.classList.add("is-over");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("is-over"));
+    zone.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      zone.classList.remove("is-over");
+      const bookingId = Number(e.dataTransfer.getData("text/plain"));
+      const dayContainer = zone.closest(".calendar-day");
+      if (!dayContainer || !bookingId) return;
+      const booking = state.bookings.find((b) => b.id === bookingId);
+      if (!booking) return;
+      const timePart = booking.scheduled_for.slice(11, 19);
+      const newDate = dayContainer.dataset.date;
+      const scheduledFor = `${newDate}T${timePart}`;
+      try {
+        await api(`/api/bookings/${bookingId}/reschedule`, "PUT", {
+          scheduled_for: scheduledFor,
+        });
+        toast(`Booking ${bookingId} rescheduled`, "info");
+        await refreshData();
+      } catch (err) {
+        setAlert(err.message, "danger");
+      }
+    });
+  });
+}
+
 function renderMetrics() {
   const active = state.bookings.filter((b) =>
     ["scheduled", "assigned", "in_progress"].includes(b.status)
@@ -534,6 +675,27 @@ function renderMetrics() {
   els.metricActive.textContent = active;
   els.metricCompleted.textContent = completed;
   els.metricPending.textContent = pending;
+
+  if (els.metricInsuranceExpiring) {
+    const insuranceExpiring = state.vehicles.filter((v) => {
+      const days = expiryDays(v.insurance_expiry);
+      return days !== null && days <= 30;
+    }).length;
+    els.metricInsuranceExpiring.textContent = insuranceExpiring;
+  }
+
+  if (els.metricPermitExpiring) {
+    const permitExpiring = state.vehicles.filter((v) => {
+      const days = expiryDays(v.permit_expiry);
+      return days !== null && days <= 30;
+    }).length;
+    els.metricPermitExpiring.textContent = permitExpiring;
+  }
+
+  if (els.metricOverdue) {
+    const overdue = state.vehicles.filter((v) => getVehicleStatus(v.id) === "overdue").length;
+    els.metricOverdue.textContent = overdue;
+  }
 }
 
 function countVehiclesByType() {
@@ -649,6 +811,24 @@ function renderNotifications() {
     } else if (status === "service_due") {
       notes.push(`Vehicle ${v.plate_number} requires service soon.`);
     }
+
+    const insuranceDays = expiryDays(v.insurance_expiry);
+    if (insuranceDays !== null && insuranceDays <= 30) {
+      notes.push(
+        `Vehicle ${v.plate_number} insurance ${
+          insuranceDays < 0 ? "expired" : `expires in ${insuranceDays} days`
+        }.`
+      );
+    }
+
+    const permitDays = expiryDays(v.permit_expiry);
+    if (permitDays !== null && permitDays <= 30) {
+      notes.push(
+        `Vehicle ${v.plate_number} permit ${
+          permitDays < 0 ? "expired" : `expires in ${permitDays} days`
+        }.`
+      );
+    }
   });
   state.bookings
     .filter((b) => b.status === "scheduled")
@@ -727,6 +907,7 @@ async function refreshData() {
   populateBookingVehicleOptions();
   renderVehicles();
   renderBookings();
+  renderBookingCalendar();
   renderMetrics();
   renderCharts();
   renderNotifications();
@@ -944,6 +1125,8 @@ window.viewVehicle = (id) => {
     <p class="mb-1"><strong>Model:</strong> ${v.model}</p>
     <p class="mb-1"><strong>Year:</strong> ${v.year}</p>
     <p class="mb-1"><strong>Vehicle Type:</strong> ${vehicleTypeBadge(v.vehicle_type)}</p>
+    <p class="mb-1"><strong>Insurance:</strong> ${complianceBadge("Insurance", v.insurance_expiry)}</p>
+    <p class="mb-1"><strong>Permit:</strong> ${complianceBadge("Permit", v.permit_expiry)}</p>
     <p class="mb-1"><strong>Status:</strong> ${status}</p>
     <p class="mb-1"><strong>Predicted Service:</strong> ${due.toLocaleDateString()}</p>
     <p class="mb-0"><strong>Health Score:</strong> ${health}/100</p>
@@ -1008,6 +1191,21 @@ function bindEvents() {
   els.refreshBookingsBtn.addEventListener("click", refreshData);
   els.loadAnalyticsBtn.addEventListener("click", loadAdminAnalytics);
 
+  if (els.calendarPrevBtn && els.calendarNextBtn && els.calendarTodayBtn) {
+    els.calendarPrevBtn.addEventListener("click", () => {
+      state.calendarStart = addDays(state.calendarStart || startOfWeek(new Date()), -7);
+      renderBookingCalendar();
+    });
+    els.calendarNextBtn.addEventListener("click", () => {
+      state.calendarStart = addDays(state.calendarStart || startOfWeek(new Date()), 7);
+      renderBookingCalendar();
+    });
+    els.calendarTodayBtn.addEventListener("click", () => {
+      state.calendarStart = startOfWeek(new Date());
+      renderBookingCalendar();
+    });
+  }
+
   [els.vehicleSearchInput, els.vehicleStatusFilter, els.vehicleModelFilter, els.vehicleYearFilter, els.vehicleTypeFilter]
     .filter(Boolean)
     .forEach((input) => {
@@ -1051,12 +1249,26 @@ function bindEvents() {
     renderActivityLogs();
     toast("Activity logs cleared", "warning");
   });
+
+  els.authTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.auth;
+      els.authTabs.forEach((btn) => btn.classList.toggle("active", btn === tab));
+      if (els.authLoginPane) {
+        els.authLoginPane.classList.toggle("active", target === "login");
+      }
+      if (els.authRegisterPane) {
+        els.authRegisterPane.classList.toggle("active", target === "register");
+      }
+    });
+  });
 }
 
 async function bootstrapApp() {
   populateSuggestions();
   bindEvents();
   refreshVehicleImagePreview();
+  state.calendarStart = startOfWeek(new Date());
   if (els.scheduledForInput) els.scheduledForInput.value = nowLocalForInput();
   renderActivityLogs();
   setRoleUI();

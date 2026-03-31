@@ -11,6 +11,7 @@ pipeline {
     }
 
     stages {
+
         stage('Clone') {
             steps {
                 echo 'Cloning code from GitHub'
@@ -38,9 +39,6 @@ pipeline {
                         echo SECRET_KEY=jenkins-secret-key
                         echo JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
                         echo JWT_EXPIRES_MIN=60
-                        echo POSTGRES_USER=vehicle_user
-                        echo POSTGRES_PASSWORD=vehicle_pass
-                        echo POSTGRES_DB=vehicle_db
                         echo DATABASE_URL=sqlite:///jenkins.db
                     ) > .env
                 '''
@@ -55,7 +53,6 @@ pipeline {
                     set PYTHONPATH=backend
                     set SECRET_KEY=jenkins-secret-key
                     set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-                    set JWT_EXPIRES_MIN=60
                     set DATABASE_URL=sqlite:///jenkins.db
                     pytest backend\\tests --junitxml=backend\\test-results.xml
                 '''
@@ -70,13 +67,29 @@ pipeline {
                     set PYTHONPATH=backend
                     set SECRET_KEY=jenkins-secret-key
                     set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-                    set JWT_EXPIRES_MIN=60
                     set DATABASE_URL=sqlite:///jenkins.db
                     python backend\\smoke_run.py > backend\\smoke-output.txt
                     type backend\\smoke-output.txt
                     findstr /C:"register 201" backend\\smoke-output.txt
                     findstr /C:"login 200" backend\\smoke-output.txt
                     findstr /C:"create_vehicle 201" backend\\smoke-output.txt
+                '''
+            }
+        }
+
+        stage('Run App') {
+            steps {
+                echo 'Starting Flask app on port 5000'
+                bat '''
+                    start cmd /k "
+                    call .venv\\Scripts\\activate &&
+                    set PYTHONPATH=backend &&
+                    set SECRET_KEY=jenkins-secret-key &&
+                    set JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890 &&
+                    set DATABASE_URL=sqlite:///jenkins.db &&
+                    set FLASK_APP=backend/run.py &&
+                    flask run --host=0.0.0.0 --port=5000
+                    "
                 '''
             }
         }
@@ -91,7 +104,7 @@ pipeline {
             echo 'Pipeline completed successfully'
         }
         failure {
-            echo 'Pipeline failed. Check test logs and smoke verification output.'
+            echo 'Pipeline failed. Check logs.'
         }
     }
 }

@@ -25,6 +25,23 @@ def ensure_vehicle_type_column():
     db.session.commit()
 
 
+def ensure_vehicle_compliance_columns():
+    inspector = inspect(db.engine)
+    columns = {column["name"] for column in inspector.get_columns("vehicles")}
+
+    if "insurance_expiry" not in columns:
+        db.session.execute(
+            text("ALTER TABLE vehicles ADD COLUMN insurance_expiry DATE")
+        )
+        db.session.commit()
+
+    if "permit_expiry" not in columns:
+        db.session.execute(
+            text("ALTER TABLE vehicles ADD COLUMN permit_expiry DATE")
+        )
+        db.session.commit()
+
+
 def create_app(config_class=Config):
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
     app.config.from_object(config_class)
@@ -42,6 +59,7 @@ def create_app(config_class=Config):
     with app.app_context():
         db.create_all()
         ensure_vehicle_type_column()
+        ensure_vehicle_compliance_columns()
 
     @app.get("/")
     def home():

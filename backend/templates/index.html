@@ -77,51 +77,59 @@
             <div class="content-wrap">
                 <div id="alertBox"></div>
 
-                <section id="authPanel" class="content-section">
-                    <div class="row g-4">
-                        <div class="col-xl-6">
-                            <div class="card panel-card">
-                                <div class="card-body">
-                                    <h5 class="card-title"><i class="bi bi-person-plus-fill me-2"></i>Register</h5>
-                                    <form id="registerForm" novalidate>
-                                        <div class="mb-2">
-                                            <input class="form-control" name="full_name" placeholder="Full Name" required>
-                                            <div class="invalid-feedback">Please enter full name.</div>
-                                        </div>
-                                        <div class="mb-2">
-                                            <input class="form-control" name="email" type="email" placeholder="Email" required>
-                                            <div class="invalid-feedback">Please enter valid email.</div>
-                                        </div>
-                                        <div class="mb-2">
-                                            <input class="form-control" name="password" type="password" placeholder="Password" minlength="6" required>
-                                            <div class="invalid-feedback">Minimum 6 characters required.</div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <select class="form-select" name="role">
-                                                <option value="user">User</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                        </div>
-                                        <button class="btn btn-primary w-100" type="submit">Create Account</button>
-                                    </form>
+                <section id="authPanel" class="content-section auth-screen">
+                    <div class="auth-shell">
+                        <div class="card panel-card auth-card">
+                            <div class="card-body">
+                                <div class="auth-header">
+                                    <div>
+                                        <h5 class="card-title mb-1">Welcome to VMS Cloud</h5>
+                                        <p class="text-muted mb-0">Secure fleet operations portal</p>
+                                    </div>
+                                    <div class="auth-tabs">
+                                        <button class="auth-tab active" data-auth="login" type="button">Login</button>
+                                        <button class="auth-tab" data-auth="register" type="button">Sign Up</button>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="col-xl-6">
-                            <div class="card panel-card">
-                                <div class="card-body">
-                                    <h5 class="card-title"><i class="bi bi-box-arrow-in-right me-2"></i>Login</h5>
-                                    <form id="loginForm" novalidate>
-                                        <div class="mb-2">
-                                            <input class="form-control" name="email" type="email" placeholder="Email" required>
-                                            <div class="invalid-feedback">Please enter valid email.</div>
-                                        </div>
-                                        <div class="mb-3">
-                                            <input class="form-control" name="password" type="password" placeholder="Password" required>
-                                            <div class="invalid-feedback">Password is required.</div>
-                                        </div>
-                                        <button class="btn btn-success w-100" type="submit">Login</button>
-                                    </form>
+                                <div class="auth-body">
+                                    <div id="authLogin" class="auth-pane active">
+                                        <h6 class="mb-3"><i class="bi bi-box-arrow-in-right me-2"></i>Login</h6>
+                                        <form id="loginForm" novalidate>
+                                            <div class="mb-2">
+                                                <input class="form-control" name="email" type="email" placeholder="Email" required>
+                                                <div class="invalid-feedback">Please enter valid email.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <input class="form-control" name="password" type="password" placeholder="Password" required>
+                                                <div class="invalid-feedback">Password is required.</div>
+                                            </div>
+                                            <button class="btn btn-success w-100" type="submit">Login</button>
+                                        </form>
+                                    </div>
+                                    <div id="authRegister" class="auth-pane">
+                                        <h6 class="mb-3"><i class="bi bi-person-plus-fill me-2"></i>Register</h6>
+                                        <form id="registerForm" novalidate>
+                                            <div class="mb-2">
+                                                <input class="form-control" name="full_name" placeholder="Full Name" required>
+                                                <div class="invalid-feedback">Please enter full name.</div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <input class="form-control" name="email" type="email" placeholder="Email" required>
+                                                <div class="invalid-feedback">Please enter valid email.</div>
+                                            </div>
+                                            <div class="mb-2">
+                                                <input class="form-control" name="password" type="password" placeholder="Password" minlength="6" required>
+                                                <div class="invalid-feedback">Minimum 6 characters required.</div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <select class="form-select" name="role">
+                                                    <option value="user">User</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                            </div>
+                                            <button class="btn btn-primary w-100" type="submit">Create Account</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -156,6 +164,29 @@
                                 <div class="metric-icon bg-danger-subtle text-danger"><i class="bi bi-exclamation-triangle"></i></div>
                                 <p class="metric-label">Pending Services</p>
                                 <h3 id="metricPending" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row g-3 mb-3 admin-only d-none" id="adminComplianceRow">
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-warning-subtle text-warning"><i class="bi bi-shield-exclamation"></i></div>
+                                <p class="metric-label">Insurance Expiring</p>
+                                <h3 id="metricInsuranceExpiring" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-primary-subtle text-primary"><i class="bi bi-card-checklist"></i></div>
+                                <p class="metric-label">Permits Expiring</p>
+                                <h3 id="metricPermitExpiring" class="metric-value">0</h3>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="metric-card">
+                                <div class="metric-icon bg-danger-subtle text-danger"><i class="bi bi-exclamation-circle"></i></div>
+                                <p class="metric-label">Overdue Services</p>
+                                <h3 id="metricOverdue" class="metric-value">0</h3>
                             </div>
                         </div>
                     </div>
@@ -264,6 +295,14 @@
                                     </select>
                                 </div>
                                 <div class="col-md-1 d-grid"><button class="btn btn-primary" type="submit"><i class="bi bi-plus"></i></button></div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Insurance Expiry</label>
+                                    <input class="form-control" name="insurance_expiry" type="date">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Permit Expiry</label>
+                                    <input class="form-control" name="permit_expiry" type="date">
+                                </div>
                                 <div class="col-12"><input id="vehicleImageInput" class="form-control" name="image_url" placeholder="Vehicle Image URL (optional)"></div>
                                 <div class="col-12"><input id="vehicleImageFileInput" class="form-control" type="file" accept="image/*"></div>
                                 <div class="col-12 d-flex align-items-center gap-2">
@@ -289,6 +328,8 @@
                                             <th>Vehicle</th>
                                             <th>Type</th>
                                             <th>Year</th>
+                                            <th>Insurance</th>
+                                            <th>Permit</th>
                                             <th>Status</th>
                                             <th>Health</th>
                                         </tr>
@@ -332,6 +373,19 @@
                                     <div id="bookingsTimeline" class="timeline"></div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                    <div class="card panel-card mt-3">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title mb-0">Booking Calendar</h5>
+                                <div class="d-flex gap-2">
+                                    <button id="calendarPrevBtn" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></button>
+                                    <button id="calendarTodayBtn" class="btn btn-sm btn-outline-secondary">Today</button>
+                                    <button id="calendarNextBtn" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-right"></i></button>
+                                </div>
+                            </div>
+                            <div id="bookingCalendar" class="booking-calendar"></div>
                         </div>
                     </div>
                 </section>

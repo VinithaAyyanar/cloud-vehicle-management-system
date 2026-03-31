@@ -64,6 +64,8 @@ class Vehicle(db.Model):
     model = db.Column(db.String(80), nullable=False)
     year = db.Column(db.Integer, nullable=False)
     vehicle_type = db.Column(db.String(20), nullable=False, default="Other", server_default="Other")
+    insurance_expiry = db.Column(db.Date, nullable=True)
+    permit_expiry = db.Column(db.Date, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     bookings = db.relationship(

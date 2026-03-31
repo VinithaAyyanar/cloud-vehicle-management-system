@@ -110,6 +110,31 @@ def update_status(booking_id):
     return jsonify({"message": "Booking status updated"})
 
 
+@bookings_bp.put("/<int:booking_id>/reschedule")
+@jwt_required()
+def reschedule_booking(booking_id):
+    payload = request.get_json() or {}
+    scheduled_raw = payload.get("scheduled_for", "").strip()
+    if not scheduled_raw:
+        return jsonify({"error": "scheduled_for is required"}), 400
+
+    try:
+        scheduled_for = datetime.fromisoformat(scheduled_raw)
+    except ValueError:
+        return jsonify({"error": "Use ISO datetime format for scheduled_for"}), 400
+
+    current_user_id = int(get_jwt_identity())
+    user = User.query.get_or_404(current_user_id)
+    booking = ServiceBooking.query.get_or_404(booking_id)
+
+    if user.role != "admin" and booking.customer_id != current_user_id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    booking.scheduled_for = scheduled_for
+    db.session.commit()
+    return jsonify({"message": "Booking rescheduled"})
+
+
 @bookings_bp.get("/<int:booking_id>/history")
 @jwt_required()
 def booking_history(booking_id):
@@ -136,4 +161,3 @@ def booking_history(booking_id):
             for row in history
         ]
     )
-
