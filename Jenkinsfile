@@ -3,71 +3,41 @@ pipeline {
 
     options {
         timestamps()
-        disableConcurrentBuilds()
-    }
-
-    triggers {
-        githubPush()
-    }
-
-    environment {
-        PYTHONPATH = "backend"
-        DATABASE_URL = "sqlite:///demo.db"
-        FLASK_APP = "backend/run.py"
     }
 
     stages {
 
         stage('Clone') {
             steps {
-                echo 'Cloning repository...'
+                echo 'Cloning repo...'
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Setting up environment...'
+                echo 'Installing dependencies...'
                 bat '''
                     python -m venv .venv
                     call .venv\\Scripts\\activate
-                    python -m pip install --upgrade pip
                     pip install -r backend\\requirements.txt
                 '''
             }
         }
 
-        stage('Run App') {
+        stage('Run App (LIVE MODE)') {
             steps {
-                echo 'Starting Flask app...'
+                echo 'Starting Flask app (LIVE)...'
 
                 bat '''
                     call .venv\\Scripts\\activate
 
-                    REM Run app in background
-                    start "" /B cmd /c "python backend\\run.py"
+                    set PYTHONPATH=backend
+                    set DATABASE_URL=sqlite:///demo.db
+
+                    python backend\\run.py
                 '''
             }
-        }
-
-        stage('Health Check') {
-            steps {
-                echo 'Checking app...'
-
-                bat '''
-                    ping 127.0.0.1 -n 6 > nul
-                    curl http://127.0.0.1:5000 || exit 1
-                '''
-            }
-        }
-    }
-
-    post {
-        success {
-            echo 'SUCCESS: App running at http://127.0.0.1:5000'
-        }
-        failure {
-            echo 'FAILED: Check logs'
         }
     }
 }
