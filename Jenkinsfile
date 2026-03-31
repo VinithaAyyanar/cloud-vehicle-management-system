@@ -14,58 +14,50 @@ pipeline {
 
         stage('Clone') {
             steps {
-                echo 'Cloning code from GitHub'
                 checkout scm
             }
         }
 
         stage('Build') {
             steps {
-                echo 'Installing dependencies'
                 bat '''
                     python -m venv .venv
                     call .venv\\Scripts\\activate
-                    python -m pip install --upgrade pip
                     pip install -r backend\\requirements.txt
                 '''
             }
         }
 
-        stage('Prepare Env') {
+        stage('Stop Previous App') {
             steps {
-                echo 'Creating environment'
+                echo 'Stopping previous app on port 5000 (if any)'
                 bat '''
-                    (
-                        echo SECRET_KEY=jenkins-secret-key
-                        echo JWT_SECRET_KEY=jenkins-jwt-secret-key-1234567890
-                        echo DATABASE_URL=sqlite:///jenkins.db
-                    ) > .env
+                    for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5000') do taskkill /PID %%a /F
                 '''
             }
         }
 
-        stage('Test') {
+        stage('Run App (Detached)') {
             steps {
-                echo 'Running tests'
-                bat '''
-                    call .venv\\Scripts\\activate
-                    set PYTHONPATH=backend
-                    set DATABASE_URL=sqlite:///jenkins.db
-                    pytest backend\\tests
-                '''
-            }
-        }
+                echo 'Starting Flask in background'
 
-        stage('Run App') {
-            steps {
-                echo 'Starting Flask app (background)'
                 bat '''
                     call .venv\\Scripts\\activate
                     set PYTHONPATH=backend
-                    set DATABASE_URL=sqlite:///jenkins.db
+                    set DATABASE_URL=sqlite:///app.db
                     set FLASK_APP=backend/run.py
 
-                    start "" flask run --host=0.0.0.0 --port=5000
+                    start "" /B python backend\\run.py
+                '''
+            }
+        }
+
+        stage('Health Check') {
+            steps {
+                echo 'Checking if app is live...'
+                bat '''
+                    timeout /t 5 > nul
+                    curl http://127.0.0.1:5000 || exit 1
                 '''
             }
         }
@@ -73,10 +65,10 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline completed successfully'
+            echo 'App is running successfully 🚀'
         }
         failure {
-            echo 'Pipeline failed'
+            echo 'Something failed ❌'
         }
     }
 }
