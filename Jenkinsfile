@@ -27,7 +27,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                echo 'Setting up Python environment...'
+                echo 'Setting up environment...'
                 bat '''
                     python -m venv .venv
                     call .venv\\Scripts\\activate
@@ -39,12 +39,12 @@ pipeline {
 
         stage('Run App') {
             steps {
-                echo 'Starting Flask app (same as VS Code run)...'
+                echo 'Starting Flask app...'
 
                 bat '''
                     call .venv\\Scripts\\activate
 
-                    REM Start Flask app in background
+                    REM Run app in background
                     start "" /B cmd /c "python backend\\run.py"
                 '''
             }
@@ -52,13 +52,10 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                echo 'Checking if app is running...'
+                echo 'Checking app...'
 
                 bat '''
-                    REM wait for server startup
                     ping 127.0.0.1 -n 6 > nul
-
-                    REM check server response
                     curl http://127.0.0.1:5000 || exit 1
                 '''
             }
@@ -67,10 +64,10 @@ pipeline {
 
     post {
         success {
-            echo 'SUCCESS: App is running at http://127.0.0.1:5000'
+            echo 'SUCCESS: App running at http://127.0.0.1:5000'
         }
         failure {
-            echo 'FAILED: Check Jenkins logs'
+            echo 'FAILED: Check logs'
         }
     }
 }
