@@ -25,7 +25,7 @@ pipeline {
             steps {
                 echo "Deploying..."
                 sh '''
-                ssh -o StrictHostKeyChecking=no azureuser@20.193.252.40 sudo systemctl restart vehicle-app
+                ssh -o StrictHostKeyChecking=no vehicle-jen@135.235.193.179 sudo systemctl restart vehicle-app
                 '''
             }
         }
