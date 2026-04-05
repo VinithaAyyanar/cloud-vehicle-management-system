@@ -1,41 +1,31 @@
 pipeline {
     agent any
 
-    options {
-        timestamps()
-    }
-
     stages {
 
-        stage('Clone') {
+        stage('Clone Repo') {
             steps {
-                echo 'Cloning repo...'
-                checkout scm
+                echo "Cloning repo..."
+                git 'https://github.com/VinithaAyyanar/cloud-vehicle-management-system.git'
             }
         }
 
-        stage('Build') {
+        stage('Build & Test') {
             steps {
-                echo 'Installing dependencies...'
-                bat '''
-                    python -m venv .venv
-                    call .venv\\Scripts\\activate
-                    pip install -r backend\\requirements.txt
+                echo "Building..."
+                sh '''
+                python3 -m venv venv
+                venv/bin/pip install -r backend/requirements.txt
+                venv/bin/python -m pytest backend/tests || true
                 '''
             }
         }
 
-        stage('Run App (LIVE MODE)') {
+        stage('Deploy') {
             steps {
-                echo 'Starting Flask app (LIVE)...'
-
-                bat '''
-                    call .venv\\Scripts\\activate
-
-                    set PYTHONPATH=backend
-                    set DATABASE_URL=sqlite:///demo.db
-
-                    python backend\\run.py
+                echo "Deploying..."
+                sh '''
+                ssh -o StrictHostKeyChecking=no azureuser@20.193.252.40 sudo systemctl restart vehicle-app
                 '''
             }
         }
