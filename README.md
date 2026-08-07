@@ -13,8 +13,6 @@ A cloud-based vehicle management system built using **Flask**, **PostgreSQL**, a
 - 📊 Admin Dashboard
 - 🐳 Docker Support
 - ⚙️ Jenkins CI/CD
-- 📈 Prometheus & Grafana Monitoring
-- ☸️ Kubernetes Deployment
 
 ---
 
@@ -26,9 +24,6 @@ A cloud-based vehicle management system built using **Flask**, **PostgreSQL**, a
 - Docker
 - Jenkins
 - Kubernetes
-- Prometheus
-- Grafana
-- Pytest
 
 ---
 
